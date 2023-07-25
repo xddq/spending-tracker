@@ -16,15 +16,8 @@ import Network.HTTP.Types (Status, status200, status400, status404, status500)
 import Network.Wai (Application)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequestHeaders), cors, simpleCorsResourcePolicy)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
+import Views (htmlToText, numbers)
 import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, scottyApp, setHeader, status, text)
-
--- Client facing errors. Whenever we get an error, we return additional
--- information in this format.
-newtype ApiError = ApiError {apiErrrorMessage :: Text}
-  deriving (Show)
-
-instance ToJSON ApiError where
-  toJSON (ApiError msg) = object ["message" .= msg]
 
 -- How incoming JSON will be parsed to our internal CreateTodoInput type
 instance FromJSON CreateTodoInput where
@@ -49,6 +42,12 @@ instance ToJSON Todo where
         "text" .= todoToJsontext,
         "done" .= todoToJsonDone
       ]
+
+newtype ApiError = ApiError {apiErrrorMessage :: Text}
+  deriving (Show)
+
+instance ToJSON ApiError where
+  toJSON (ApiError msg) = object ["message" .= msg]
 
 sendError :: Text -> Status -> ActionM ()
 sendError message responseStatus = do
@@ -79,6 +78,11 @@ mkApp conn =
     -- Add any WAI middleware, they are run top-down.
     middleware logStdoutDev
     middleware allowCors
+
+    get "/numbers" $ do
+      setHeader "Content-Type" "text/html; charset=utf-8"
+      status status200
+      text $ htmlToText $ numbers 3
 
     get "/" $ do
       setHeader "Content-Type" "text/plain; charset=utf-8"
