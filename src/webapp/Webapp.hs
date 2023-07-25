@@ -18,7 +18,7 @@ import Network.Wai (Application)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequestHeaders), cors, simpleCorsResourcePolicy)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Views (CurrentDateAsString, displayPurchases, errorView, htmlToText, mkCurrentDateAsString, numbers)
-import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, scottyApp, setHeader, status, text)
+import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, redirect, scottyApp, setHeader, status, text)
 
 newtype ApiError = ApiError {apiErrrorMessage :: Text}
   deriving (Show)
@@ -83,7 +83,7 @@ mkApp conn =
         Nothing -> text $ htmlToText $ errorView "could not parse the given date"
         Just date -> do
           _purchase <- liftIO $ createPurchase conn (CreatePurchaseInput titleValue (euroToCent priceInEuro) whoPayed date)
-          text "ok"
+          redirect "/"
 
     get "/" $ do
       setHeader "Content-Type" "text/html; charset=utf-8"
