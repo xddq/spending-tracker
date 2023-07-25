@@ -74,7 +74,7 @@ appCorsResourcePolicy =
     }
 
 textToDate :: String -> Maybe Day
-textToDate = parseTimeM True defaultTimeLocale "%Y-%-m-%-d"
+textToDate = parseTimeM True defaultTimeLocale "%-d %-m %Y"
 
 euroToCent :: Double -> Int
 euroToCent x = round $ x * 100

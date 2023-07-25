@@ -6,8 +6,8 @@
   <body>
     <form target="_self" action="/api/add-entry" method="post">
       <label>
-        Notiz
-        <input type="text" name="title" />
+        Beschreibung des Einkaufs
+        <input type="text" name="title" required />
       </label>
       <br />
       <label>
@@ -18,12 +18,20 @@
           placeholder="1.0"
           step="0.01"
           min="0"
+          required
         />
       </label>
       <br />
       <label>
-        Datum
-        <input type="date" name="date" />
+        Datum (Mit Leerzeichen. Korrekt ist z.b. 26 03 2023)
+        <input
+          type="text"
+          id="dateInput"
+          name="date"
+          pattern="(0[1-9]|[1-2][0-9]|3[0-1]) (0[1-9]|1[0-2]) [0-9]{4}"
+          placeholder="dd mm yyyy"
+          required
+        />
       </label>
       <br />
       <input type="submit" value="Eintrag erstellen" />
