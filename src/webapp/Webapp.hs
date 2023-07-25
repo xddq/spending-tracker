@@ -9,40 +9,16 @@ import Data.String (IsString (fromString))
 import Data.Text.Lazy (Text, pack)
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Data.Text.Lazy.Read (decimal)
-import Data.Time (Day, defaultTimeLocale, parseTimeM)
-import Database (CreatePurchaseInput (CreatePurchaseInput), CreateTodoInput (CreateTodoInput), Purchase (Purchase), Todo (Todo), UpdateTodoInput (UpdateTodoInput, updateTodoInputId), createPurchase, createTodo, deleteTodo, getPurchases, getTodoById, getTodos, updateTodoById)
+import Data.Time (Day, UTCTime (utctDay), defaultTimeLocale, formatTime, getCurrentTime, parseTimeM)
+import Database (CreatePurchaseInput (CreatePurchaseInput), Purchase (Purchase), createPurchase, getPurchases)
 import Database.PostgreSQL.Simple (Connection)
 import GHC.Generics (Generic)
 import Network.HTTP.Types (Status, status200, status400, status404, status500)
 import Network.Wai (Application)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequestHeaders), cors, simpleCorsResourcePolicy)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import Views (displayPurchases, errorView, htmlToText, numbers)
+import Views (CurrentDateAsString, displayPurchases, errorView, htmlToText, mkCurrentDateAsString, numbers)
 import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, scottyApp, setHeader, status, text)
-
--- How incoming JSON will be parsed to our internal CreateTodoInput type
-instance FromJSON CreateTodoInput where
-  parseJSON = withObject "CreateTodoInput" $ \obj -> do
-    createTodoInputFromJsonText <- obj .: "text"
-    createTodoInputFromJsonDone <- obj .: "done"
-    return (CreateTodoInput createTodoInputFromJsonText createTodoInputFromJsonDone)
-
--- How incoming JSON will be parsed to our internal UpdateTodoInput type
-instance FromJSON UpdateTodoInput where
-  parseJSON = withObject "UpdateTodoInput" $ \obj -> do
-    updateTodoInputFromJsonId <- obj .: "id"
-    updateTodoInputFromJsonText <- obj .: "text"
-    updateTodoInputFromJsonDone <- obj .: "done"
-    return (UpdateTodoInput updateTodoInputFromJsonId updateTodoInputFromJsonText updateTodoInputFromJsonDone)
-
--- How internal Todo will be parsed to outgoing JSON
-instance ToJSON Todo where
-  toJSON (Todo todoToJsonId todoToJsontext todoToJsonDone) =
-    object
-      [ "id" .= todoToJsonId,
-        "text" .= todoToJsontext,
-        "done" .= todoToJsonDone
-      ]
 
 newtype ApiError = ApiError {apiErrrorMessage :: Text}
   deriving (Show)
@@ -73,11 +49,22 @@ appCorsResourcePolicy =
       corsRequestHeaders = ["Authorization", "Content-Type"]
     }
 
+-- days may have 1 or 2 chars, then one space, then month with one or two
+-- letters then space and a 4 char year. Example: 23 07 2023
+dateFormat :: String
+dateFormat = "%-d %-m %Y"
+
 textToDate :: String -> Maybe Day
-textToDate = parseTimeM True defaultTimeLocale "%-d %-m %Y"
+textToDate = parseTimeM True defaultTimeLocale dateFormat
 
 euroToCent :: Double -> Int
 euroToCent x = round $ x * 100
+
+-- returns the current date in the format we use for the app
+getCurrentDateAsString :: IO CurrentDateAsString
+getCurrentDateAsString = do
+  timeNow <- utctDay <$> getCurrentTime
+  return $ mkCurrentDateAsString $ formatTime defaultTimeLocale dateFormat timeNow
 
 mkApp :: Connection -> IO Application
 mkApp conn =
@@ -90,75 +77,21 @@ mkApp conn =
     post "/api/add-entry" $ do
       titleValue <- param "title" :: ActionM Text
       priceInEuro <- param "priceInEuro" :: ActionM Double
+      whoPayed <- param "whoPayed" :: ActionM Text
       date <- param "date" :: ActionM String
       case textToDate date of
         Nothing -> text $ htmlToText $ errorView "could not parse the given date"
         Just date -> do
-          _purchase <- liftIO $ createPurchase conn (CreatePurchaseInput titleValue (euroToCent priceInEuro) date)
+          _purchase <- liftIO $ createPurchase conn (CreatePurchaseInput titleValue (euroToCent priceInEuro) whoPayed date)
           text "ok"
 
     get "/" $ do
       setHeader "Content-Type" "text/html; charset=utf-8"
       purchases <- liftIO (getPurchases conn)
-      text $ htmlToText $ displayPurchases purchases
+      currentDate <- liftIO getCurrentDateAsString
+      text $ htmlToText $ displayPurchases currentDate purchases
 
     get "/numbers" $ do
       setHeader "Content-Type" "text/html; charset=utf-8"
       status status200
       text $ htmlToText $ numbers 3
-
-    -- GET all todos
-    get "/todos" $ do
-      todos <- liftIO (getTodos conn)
-      sendSuccess (decodeUtf8 $ encode todos)
-
-    -- GET one todo
-    get "/todos/:id" $ do
-      unparsedId <- param "id"
-      case decimal unparsedId of
-        Left err -> sendError (pack err) status400
-        Right (parsedId, _rest) -> do
-          listWithTodo <- liftIO (getTodoById conn parsedId)
-          case listToMaybe listWithTodo of
-            Just todo -> sendSuccess $ decodeUtf8 $ encode todo
-            Nothing -> sendError "not found" status404
-
-    -- DELETE one todo
-    delete "/todos/:id" $ do
-      unparsedId <- param "id"
-      case decimal unparsedId of
-        Left err -> sendError (pack err) status400
-        Right (parsedId, _rest) -> do
-          deletedRowsCount <- liftIO (deleteTodo conn parsedId)
-          if deletedRowsCount == 1
-            then sendSuccess $ decodeUtf8 $ encode $ object ["message" .= ("ok" :: Text)]
-            else sendError "not found" status404
-
-    -- CREATE one todo
-    post "/todos" $ do
-      unparsedJson <- body
-      case decode unparsedJson :: Maybe Database.CreateTodoInput of
-        Just createTodoInput -> do
-          listWithCreatedTodo <- liftIO (createTodo conn createTodoInput)
-          case listToMaybe listWithCreatedTodo of
-            Just createdTodo -> sendSuccess $ decodeUtf8 $ encode createdTodo
-            Nothing -> sendError "should never happen. creating a todo returned an empty list" status500
-        Nothing -> sendError "invalid input" status400
-
-    -- UPDATE one todo
-    patch "/todos/:id" $ do
-      unparsedIdFromPath <- param "id"
-      case decimal unparsedIdFromPath of
-        Left err -> sendError (pack err) status400
-        Right (idOfToBeUpdatedTodo, _rest) -> do
-          unparsedJson <- body
-          case decode unparsedJson :: Maybe UpdateTodoInput of
-            Just updateTodoInput -> do
-              if idOfToBeUpdatedTodo /= updateTodoInputId updateTodoInput
-                then sendError "id of payload and path did not match" status400
-                else do
-                  updatedTodo <- liftIO (updateTodoById conn updateTodoInput)
-                  case listToMaybe updatedTodo of
-                    Just todo -> sendSuccess $ decodeUtf8 $ encode todo
-                    Nothing -> sendError "not found" status404
-            Nothing -> sendError "invalid input" status400

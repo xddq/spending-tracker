@@ -6,18 +6,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database
-  ( createTodo,
-    getTodos,
-    getTodoById,
-    updateTodoById,
-    deleteTodo,
-    createPurchase,
+  ( createPurchase,
     getPurchases,
     Purchase (Purchase, purchaseDate, purchasePriceInCent, purchaseTitle),
     CreatePurchaseInput (CreatePurchaseInput, createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputDate),
-    Todo (Todo, todoDone, todoId, todoText),
-    CreateTodoInput (CreateTodoInput, createTodoInputDone, createTodoInputText),
-    UpdateTodoInput (UpdateTodoInput, updateTodoInputDone, updateTodoInputId, updateTodoInputText),
   )
 where
 
@@ -29,45 +21,11 @@ import Database.PostgreSQL.Simple.FromRow (FromRow (fromRow), field)
 import Database.PostgreSQL.Simple.ToRow (ToRow (toRow))
 import GHC.Generics (Generic)
 
--- for validating the todo we pass when creating a new todo
-data CreateTodoInput = CreateTodoInput
-  { createTodoInputText :: Text,
-    createTodoInputDone :: Bool
-  }
-  deriving (Show, Generic)
-
-instance ToRow CreateTodoInput where
-  -- NOTE: the order here (in the toRow on the right) determines the required
-  -- order of args in the SQL insert statement.
-  toRow CreateTodoInput {createTodoInputDone, createTodoInputText} = toRow (createTodoInputDone, createTodoInputText)
-
--- for validating the todo we pass when updating a todo
-data UpdateTodoInput = UpdateTodoInput
-  { updateTodoInputId :: Int,
-    updateTodoInputText :: Text,
-    updateTodoInputDone :: Bool
-  }
-  deriving (Show, Generic)
-
-instance ToRow UpdateTodoInput where
-  -- NOTE: the order here (in the toRow on the right) determines the required
-  -- order of args in the SQL insert statement.
-  toRow UpdateTodoInput {updateTodoInputText, updateTodoInputDone, updateTodoInputId} = toRow (updateTodoInputText, updateTodoInputDone, updateTodoInputId)
-
-data Todo = Todo
-  { todoId :: Int,
-    todoText :: Text,
-    todoDone :: Bool
-  }
-  deriving (Show, Generic, ToRow)
-
-instance FromRow Todo where
-  fromRow = Todo <$> field <*> field <*> field
-
 -- for validating the purchase we pass when creating a new one
 data CreatePurchaseInput = CreatePurchaseInput
   { createPurchaseInputTitle :: Text,
     createPurchaseInputPriceInCent :: Int,
+    createPurchaseInputNameWhoPayed :: Text,
     createPurchaseInputDate :: Day
   }
   deriving (Show, Generic)
@@ -75,12 +33,13 @@ data CreatePurchaseInput = CreatePurchaseInput
 instance ToRow CreatePurchaseInput where
   -- NOTE: the order here (in the toRow on the right) determines the required
   -- order of args in the SQL insert statement.
-  toRow CreatePurchaseInput {createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputDate} = toRow (createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputDate)
+  toRow CreatePurchaseInput {createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputNameWhoPayed, createPurchaseInputDate} = toRow (createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputNameWhoPayed, createPurchaseInputDate)
 
 data Purchase = Purchase
   { purchaseId :: Int,
     purchaseTitle :: Text,
     purchasePriceInCent :: Int,
+    purchaseNameWhoPayed :: Text,
     purchaseDate :: Day
   }
   deriving (Show, Generic, FromRow)
@@ -88,25 +47,10 @@ data Purchase = Purchase
 instance ToRow Purchase where
   -- NOTE: the order here (in the toRow on the right) determines the required
   -- order of args in the SQL insert statement.
-  toRow Purchase {purchaseTitle, purchasePriceInCent, purchaseDate} = toRow (purchaseTitle, purchasePriceInCent, purchaseDate)
+  toRow Purchase {purchaseTitle, purchasePriceInCent, purchaseNameWhoPayed, purchaseDate} = toRow (purchaseTitle, purchasePriceInCent, purchaseNameWhoPayed, purchaseDate)
 
 createPurchase :: Connection -> CreatePurchaseInput -> IO [Purchase]
-createPurchase conn = query conn "INSERT INTO purchases (title, price_in_cent, date) VALUES (?,?,?) RETURNING *"
+createPurchase conn = query conn "INSERT INTO purchases (title, price_in_cent, name_who_payed, date) VALUES (?,?,?,?) RETURNING *"
 
 getPurchases :: Connection -> IO [Purchase]
 getPurchases conn = query_ conn "SELECT * FROM purchases ORDER BY date DESC"
-
-createTodo :: Connection -> CreateTodoInput -> IO [Todo]
-createTodo conn = query conn "INSERT INTO todos (done,text) VALUES (?,?) RETURNING *"
-
-getTodos :: Connection -> IO [Todo]
-getTodos conn = query_ conn "SELECT id,text,done FROM todos"
-
-getTodoById :: Connection -> Int -> IO [Todo]
-getTodoById conn idOfTodo = query conn "SELECT id,text,done FROM todos WHERE id = ?" [idOfTodo]
-
-updateTodoById :: Connection -> UpdateTodoInput -> IO [Todo]
-updateTodoById conn = query conn "UPDATE todos SET text=?,done=? WHERE id=? RETURNING *"
-
-deleteTodo :: Connection -> Int -> IO Int64
-deleteTodo conn todoId = execute conn "DELETE FROM todos WHERE id = ?" (Only todoId)
