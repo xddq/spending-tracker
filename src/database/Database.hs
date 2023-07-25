@@ -11,6 +11,10 @@ module Database
     getTodoById,
     updateTodoById,
     deleteTodo,
+    createPurchase,
+    getPurchases,
+    Purchase (Purchase, purchaseDate, purchasePriceInCent, purchaseTitle),
+    CreatePurchaseInput (CreatePurchaseInput, createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputDate),
     Todo (Todo, todoDone, todoId, todoText),
     CreateTodoInput (CreateTodoInput, createTodoInputDone, createTodoInputText),
     UpdateTodoInput (UpdateTodoInput, updateTodoInputDone, updateTodoInputId, updateTodoInputText),
@@ -19,6 +23,7 @@ where
 
 import Data.Int (Int64)
 import Data.Text.Lazy (Text)
+import Data.Time (Day)
 import Database.PostgreSQL.Simple (Connection, FromRow, Only (Only), ToRow, execute, query, query_)
 import Database.PostgreSQL.Simple.FromRow (FromRow (fromRow), field)
 import Database.PostgreSQL.Simple.ToRow (ToRow (toRow))
@@ -58,6 +63,38 @@ data Todo = Todo
 
 instance FromRow Todo where
   fromRow = Todo <$> field <*> field <*> field
+
+-- for validating the purchase we pass when creating a new one
+data CreatePurchaseInput = CreatePurchaseInput
+  { createPurchaseInputTitle :: Text,
+    createPurchaseInputPriceInCent :: Int,
+    createPurchaseInputDate :: Day
+  }
+  deriving (Show, Generic)
+
+instance ToRow CreatePurchaseInput where
+  -- NOTE: the order here (in the toRow on the right) determines the required
+  -- order of args in the SQL insert statement.
+  toRow CreatePurchaseInput {createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputDate} = toRow (createPurchaseInputTitle, createPurchaseInputPriceInCent, createPurchaseInputDate)
+
+data Purchase = Purchase
+  { purchaseId :: Int,
+    purchaseTitle :: Text,
+    purchasePriceInCent :: Int,
+    purchaseDate :: Day
+  }
+  deriving (Show, Generic, FromRow)
+
+instance ToRow Purchase where
+  -- NOTE: the order here (in the toRow on the right) determines the required
+  -- order of args in the SQL insert statement.
+  toRow Purchase {purchaseTitle, purchasePriceInCent, purchaseDate} = toRow (purchaseTitle, purchasePriceInCent, purchaseDate)
+
+createPurchase :: Connection -> CreatePurchaseInput -> IO [Purchase]
+createPurchase conn = query conn "INSERT INTO purchases (title, price_in_cent, date) VALUES (?,?,?) RETURNING *"
+
+getPurchases :: Connection -> IO [Purchase]
+getPurchases conn = query_ conn "SELECT * FROM purchases"
 
 createTodo :: Connection -> CreateTodoInput -> IO [Todo]
 createTodo conn = query conn "INSERT INTO todos (done,text) VALUES (?,?) RETURNING *"

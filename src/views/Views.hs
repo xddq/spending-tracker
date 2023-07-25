@@ -3,11 +3,14 @@
 module Views
   ( numbers,
     htmlToText,
+    errorView,
+    displayPurchases,
   )
 where
 
 import Control.Monad (forM_)
 import Data.Text.Lazy (Text)
+import Database (Purchase (Purchase))
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import Text.Blaze.Html5 as H
 import Text.Blaze.Html5.Attributes as A
@@ -19,6 +22,48 @@ numbers n = docTypeHtml $ do
   body $ do
     p "A list of natural numbers:"
     ul $ forM_ [1 .. n] (li . toHtml)
+
+-- html snippet for adding a new purchase
+addPurchaseForm :: Html
+addPurchaseForm = H.form ! target "_self" ! action "/api/add-entry" ! method "post" $ do
+  H.label $ do
+    "Notiz"
+    input ! type_ "text" ! name "title"
+  br
+  H.label $ do
+    "Preis in Euro (beispiel 5.30 für 5.30€)"
+    input ! type_ "number" ! name "priceInEuro"
+  br
+  H.label $ do
+    "Datum"
+    input ! type_ "date" ! name "date"
+  br
+  input ! type_ "submit" ! value "Eintrag erstellen"
+
+displayPurchases :: [Purchase] -> Html
+displayPurchases purchases = docTypeHtml $ do
+  H.head $ H.title "Purchases"
+  body $ do
+    h1 "Eintrag hinzufügen"
+    addPurchaseForm
+    br
+    h1 "Liste aller Einträge"
+    ul $ mapM_ displayPurchase purchases
+
+displayPurchase :: Purchase -> Html
+displayPurchase (Purchase pId pTitle pPriceCent pDate) = do
+  li $ do
+    H.div $ toHtml pTitle
+    H.div $ toHtml pPriceCent
+    H.div $ toHtml $ show pDate
+
+errorView :: Text -> Html
+errorView err = docTypeHtml $ do
+  H.head $ H.title "Error"
+  body $ do
+    p "An error occured:"
+    br
+    p $ toHtml err
 
 htmlToText :: Html -> Text
 htmlToText = renderHtml

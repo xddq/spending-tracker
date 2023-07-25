@@ -27,6 +27,8 @@ library webapp
                        database,
                        -- our views
                        views,
+                       -- time
+                       time == 1.12.2,
 
 library database
   exposed-modules:     Database
@@ -36,6 +38,8 @@ library database
                        base-compat >= 0.12 && < 0.13,
                        postgresql-simple == 0.6.5.1,
                        text == 1.2.5.0,
+                       -- time
+                       time == 1.12.2,
 
 library views
   exposed-modules:     Views
@@ -45,6 +49,8 @@ library views
                        base-compat >= 0.12 && < 0.13,
                        blaze-html == 0.9.1.2,
                        text == 1.2.5.0,
+                       -- for type of purchase
+                       database,
 
 test-suite apptest
   type:                exitcode-stdio-1.0

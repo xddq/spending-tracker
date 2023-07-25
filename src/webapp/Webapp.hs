@@ -9,14 +9,15 @@ import Data.String (IsString (fromString))
 import Data.Text.Lazy (Text, pack)
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Data.Text.Lazy.Read (decimal)
-import Database (CreateTodoInput (CreateTodoInput), Todo (Todo), UpdateTodoInput (UpdateTodoInput, updateTodoInputId), createTodo, deleteTodo, getTodoById, getTodos, updateTodoById)
+import Data.Time (Day, defaultTimeLocale, parseTimeM)
+import Database (CreatePurchaseInput (CreatePurchaseInput), CreateTodoInput (CreateTodoInput), Purchase (Purchase), Todo (Todo), UpdateTodoInput (UpdateTodoInput, updateTodoInputId), createPurchase, createTodo, deleteTodo, getPurchases, getTodoById, getTodos, updateTodoById)
 import Database.PostgreSQL.Simple (Connection)
 import GHC.Generics (Generic)
 import Network.HTTP.Types (Status, status200, status400, status404, status500)
 import Network.Wai (Application)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequestHeaders), cors, simpleCorsResourcePolicy)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import Views (htmlToText, numbers)
+import Views (displayPurchases, errorView, htmlToText, numbers)
 import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, scottyApp, setHeader, status, text)
 
 -- How incoming JSON will be parsed to our internal CreateTodoInput type
@@ -72,6 +73,12 @@ appCorsResourcePolicy =
       corsRequestHeaders = ["Authorization", "Content-Type"]
     }
 
+textToDate :: String -> Maybe Day
+textToDate = parseTimeM True defaultTimeLocale "%Y-%-m-%-d"
+
+euroToCent :: Double -> Int
+euroToCent x = round $ x * 100
+
 mkApp :: Connection -> IO Application
 mkApp conn =
   scottyApp $ do
@@ -79,15 +86,26 @@ mkApp conn =
     middleware logStdoutDev
     middleware allowCors
 
+    -- expecting the form params here in order to create the new entry
+    post "/api/add-entry" $ do
+      titleValue <- param "title" :: ActionM Text
+      priceInEuro <- param "priceInEuro" :: ActionM Double
+      date <- param "date" :: ActionM String
+      case textToDate date of
+        Nothing -> text $ htmlToText $ errorView "could not parse the given date"
+        Just date -> do
+          _purchase <- liftIO $ createPurchase conn (CreatePurchaseInput titleValue (euroToCent priceInEuro) date)
+          text "ok"
+
+    get "/" $ do
+      setHeader "Content-Type" "text/html; charset=utf-8"
+      purchases <- liftIO (getPurchases conn)
+      text $ htmlToText $ displayPurchases purchases
+
     get "/numbers" $ do
       setHeader "Content-Type" "text/html; charset=utf-8"
       status status200
       text $ htmlToText $ numbers 3
-
-    get "/" $ do
-      setHeader "Content-Type" "text/plain; charset=utf-8"
-      status status200
-      text $ fromString "Welcome to your todo list! You might want to query /todos instead :]"
 
     -- GET all todos
     get "/todos" $ do

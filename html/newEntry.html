@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Adding new entry</title>
+  </head>
+  <body>
+    <form target="_self" action="/api/add-entry" method="post">
+      <label>
+        Notiz
+        <input type="text" name="title" />
+      </label>
+      <br />
+      <label>
+        Preis in Euro (beispiel 5.30 für 5.30€)
+        <input type="number" name="priceInEuro" />
+      </label>
+      <br />
+      <label>
+        Datum
+        <input type="date" name="date" />
+      </label>
+      <br />
+      <input type="submit" value="Eintrag erstellen" />
+    </form>
+  </body>
+</html>
