@@ -25,20 +25,22 @@ numbers n = docTypeHtml $ do
 
 -- html snippet for adding a new purchase
 addPurchaseForm :: Html
-addPurchaseForm = H.form ! target "_self" ! action "/api/add-entry" ! method "post" $ do
-  H.label $ do
-    "Notiz"
-    input ! type_ "text" ! name "title"
-  br
-  H.label $ do
-    "Preis in Euro (beispiel 5.30 für 5.30€)"
-    input ! type_ "number" ! name "priceInEuro"
-  br
-  H.label $ do
-    "Datum"
-    input ! type_ "date" ! name "date"
-  br
-  input ! type_ "submit" ! value "Eintrag erstellen"
+addPurchaseForm = docTypeHtml $ do
+  H.head $ H.title "Adding new entry"
+  body $ H.form ! target "_self" ! action "/api/add-entry" ! method "post" $ do
+    H.label $ do
+      "Notiz"
+      input ! type_ "text" ! name "title"
+    br
+    H.label $ do
+      "Preis in Euro (beispiel 5.30 für 5.30€)"
+      input ! type_ "number" ! name "priceInEuro" ! placeholder "1.0" ! step "0.01" ! A.min "0"
+    br
+    H.label $ do
+      "Datum"
+      input ! type_ "date" ! name "date"
+    br
+    input ! type_ "submit" ! value "Eintrag erstellen"
 
 displayPurchases :: [Purchase] -> Html
 displayPurchases purchases = docTypeHtml $ do
@@ -53,9 +55,12 @@ displayPurchases purchases = docTypeHtml $ do
 displayPurchase :: Purchase -> Html
 displayPurchase (Purchase pId pTitle pPriceCent pDate) = do
   li $ do
-    H.div $ toHtml pTitle
-    H.div $ toHtml pPriceCent
-    H.div $ toHtml $ show pDate
+    H.div $ do
+      toHtml pTitle
+      preEscapedText "&nbsp;&nbsp;&nbsp;&nbsp;"
+      toHtml $ priceCentToEuroString pPriceCent
+      preEscapedText "&nbsp;&nbsp;&nbsp;&nbsp;"
+      toHtml $ show pDate
 
 errorView :: Text -> Html
 errorView err = docTypeHtml $ do
@@ -64,6 +69,9 @@ errorView err = docTypeHtml $ do
     p "An error occured:"
     br
     p $ toHtml err
+
+priceCentToEuroString :: Int -> String
+priceCentToEuroString x = show ((fromIntegral x) / 100) ++ "€"
 
 htmlToText :: Html -> Text
 htmlToText = renderHtml

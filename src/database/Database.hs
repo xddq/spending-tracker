@@ -94,7 +94,7 @@ createPurchase :: Connection -> CreatePurchaseInput -> IO [Purchase]
 createPurchase conn = query conn "INSERT INTO purchases (title, price_in_cent, date) VALUES (?,?,?) RETURNING *"
 
 getPurchases :: Connection -> IO [Purchase]
-getPurchases conn = query_ conn "SELECT * FROM purchases"
+getPurchases conn = query_ conn "SELECT * FROM purchases ORDER BY date DESC"
 
 createTodo :: Connection -> CreateTodoInput -> IO [Todo]
 createTodo conn = query conn "INSERT INTO todos (done,text) VALUES (?,?) RETURNING *"
