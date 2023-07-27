@@ -1,6 +1,11 @@
 # requires manual creation in advance. See create-image.sh
 FROM xddqxddq/haskell:ghc-9.2.7.0-cabal-3.6.2.0
 
+# required creating the initial database and possible migrations
+RUN apt-get install -y curl && \
+    curl -fsSL -o /usr/local/bin/dbmate https://github.com/amacneil/dbmate/releases/download/v2.5.0/dbmate-linux-amd64 && \
+    chmod +x /usr/local/bin/dbmate
+
 # update package list
 RUN cabal update
 
