@@ -1,0 +1,15 @@
+# requires manual creation in advance. See create-image.sh
+FROM haskell:ghc-9.2.7.0-cabal-3.6.2.0
+
+# update package list
+RUN cabal update
+
+WORKDIR /srv/haskell
+
+COPY . .
+
+# install deps, build app
+RUN cabal build
+
+# install vim for on container debugging, use correct .env file
+RUN apt update && apt install -y vim && cp env.prod .env

@@ -65,6 +65,8 @@ test-suite apptest
                        -- for testing the app
                        hspec == 2.11.3,
                        hspec-wai == 0.11.1,
+                       -- reading from .env file
+                       dotenv ==  0.11.0.2,
                        -- our webapp
                        webapp,
 
@@ -78,6 +80,8 @@ executable todo-app
                        base-compat >= 0.12 && < 0.13,
                        postgresql-simple == 0.6.5.1,
                        warp == 3.3.28,
+                       -- reading from .env file
+                       dotenv ==  0.11.0.2,
                        -- our webapp
                        webapp,
   GHC-options:         -Wall -threaded
