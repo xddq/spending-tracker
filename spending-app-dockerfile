@@ -1,5 +1,5 @@
 # requires manual creation in advance. See create-image.sh
-FROM haskell:ghc-9.2.7.0-cabal-3.6.2.0
+FROM xddqxddq/haskell:ghc-9.2.7.0-cabal-3.6.2.0
 
 # update package list
 RUN cabal update
