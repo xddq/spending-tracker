@@ -17,7 +17,7 @@ import Network.HTTP.Types (Status, status200, status400, status404, status500)
 import Network.Wai (Application)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequestHeaders), cors, simpleCorsResourcePolicy)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import Views (CurrentDateAsString, displayPurchases, errorView, htmlToText, mkCurrentDateAsString, numbers)
+import Views (displayPurchases, errorView, htmlToText, mkCurrentDate)
 import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, redirect, scottyApp, setHeader, status, text)
 
 newtype ApiError = ApiError {apiErrrorMessage :: Text}
@@ -52,7 +52,7 @@ appCorsResourcePolicy =
 -- days may have 1 or 2 chars, then one space, then month with one or two
 -- letters then space and a 4 char year. Example: 23 07 2023
 dateFormat :: String
-dateFormat = "%-d %-m %Y"
+dateFormat = "%-d.%-m.%Y"
 
 textToDate :: String -> Maybe Day
 textToDate = parseTimeM True defaultTimeLocale dateFormat
@@ -61,10 +61,10 @@ euroToCent :: Double -> Int
 euroToCent x = round $ x * 100
 
 -- returns the current date in the format we use for the app
-getCurrentDateAsString :: IO CurrentDateAsString
-getCurrentDateAsString = do
-  timeNow <- utctDay <$> getCurrentTime
-  return $ mkCurrentDateAsString $ formatTime defaultTimeLocale dateFormat timeNow
+-- getCurrentDateAsString :: IO CurrentDateAsString
+-- getCurrentDateAsString = do
+--   timeNow <- utctDay <$> getCurrentTime
+--   return $ mkCurrentDateAsString timeNow
 
 mkApp :: Connection -> IO Application
 mkApp conn =
@@ -88,10 +88,10 @@ mkApp conn =
     get "/" $ do
       setHeader "Content-Type" "text/html; charset=utf-8"
       purchases <- liftIO (getPurchases conn)
-      currentDate <- liftIO getCurrentDateAsString
-      text $ htmlToText $ displayPurchases currentDate purchases
+      currentDate <- liftIO (utctDay <$> getCurrentTime)
+      text $ htmlToText $ displayPurchases (mkCurrentDate currentDate) purchases
 
-    get "/numbers" $ do
-      setHeader "Content-Type" "text/html; charset=utf-8"
-      status status200
-      text $ htmlToText $ numbers 3
+-- get "/numbers" $ do
+--   setHeader "Content-Type" "text/html; charset=utf-8"
+--   status status200
+--   text $ htmlToText $ numbers 3

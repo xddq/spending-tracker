@@ -51,6 +51,8 @@ library views
                        text == 1.2.5.0,
                        -- for type of purchase
                        database,
+                       -- time
+                       time == 1.12.2,
 
 test-suite apptest
   type:                exitcode-stdio-1.0
