@@ -86,28 +86,6 @@ addPurchaseSnippet currentDate = do
         H.div ! class_ "control" $ input ! class_ "input" ! type_ "text" ! A.id "dateInput" ! name "date" ! pattern "(0[1-9]|[1-2][0-9]|3[0-1])\\.(0[1-9]|1[0-2])\\.20[0-9]{2}" ! placeholder (toValue $ show currentDate) ! required ""
       H.div ! class_ "field" $ H.div ! class_ "control" $ input ! class_ "button is-link" ! type_ "submit" ! value "Eintrag erstellen"
 
-bulmaCurr :: Html
-bulmaCurr = do
-  section ! class_ "section" $ H.div ! class_ "container" $ do
-    h1 ! class_ "title" $ "Liste aller Einkäufe"
-    table ! class_ "table" $ do
-      thead $ tr $ do
-        th "Beschreibung des Einkaufs"
-        th "Person die gezahlt hat"
-        th "Preis in Euro"
-        th "Datum des Einkaufs"
-      tbody $ do
-        tr $ do
-          td "1"
-          td "2"
-          td "3"
-          td "4"
-        tr $ do
-          td "1"
-          td "2"
-          td "3"
-          td "4"
-
 -- __snippets__
 displayPurchases :: CurrentDate -> [Purchase] -> Html
 displayPurchases x purchases = do
@@ -125,8 +103,8 @@ displayPurchase :: Purchase -> Html
 displayPurchase (Purchase pId pTitle pPriceCent pWhoPayed pDate) = do
   H.tr $ do
     H.td $ toHtml pTitle
-    H.td $ toHtml $ priceCentToEuroString pPriceCent
     H.td $ toHtml pWhoPayed
+    H.td $ toHtml $ priceCentToEuroString pPriceCent
     H.td $ toHtml $ show $ mkCurrentDate pDate
 
 -- pages
