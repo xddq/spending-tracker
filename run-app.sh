@@ -2,6 +2,9 @@
 #
 # only used for docker deployment, executed after wait-for-it.sh
 
+echo "tailing dev null"
+tail -f /dev/null
+
 # creates database (required on first ever run, idempotent)
 dbmate create
 # runs migrations
