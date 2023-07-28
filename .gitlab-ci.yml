@@ -24,5 +24,6 @@ deploy:
 
   script:
     - cp ./docker-compose-prod.yaml ./docker-compose.yaml
+    - docker-compose build --no-cache
     - echo "Spinning up containers..."
     - docker-compose up -d
