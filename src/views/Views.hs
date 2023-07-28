@@ -46,7 +46,7 @@ addPurchaseForm currentDate = docTypeHtml $ do
       input ! type_ "number" ! name "priceInEuro" ! placeholder "1.0" ! step "0.01" ! A.min "0" ! required ""
     br
     H.label $ do
-      "Datum (Mit Leerzeichen. Korrekt ist z.b. 26 03 2023)"
+      "Datum (Korrektes Format ist z.b. 26.3.2023 oder 26.03.2023)"
       input ! type_ "text" ! A.id "dateInput" ! name "date" ! pattern "(0[1-9]|[1-2][0-9]|3[0-1])\\.(0[1-9]|1[0-2])\\.20[0-9]{2}" ! placeholder (toValue $ show currentDate) ! required ""
     br
     input ! type_ "submit" ! value "Eintrag erstellen"

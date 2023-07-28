@@ -6,9 +6,27 @@
 
 # stages in the order we are going through them
 stages:
+  - build
   - deploy
 
 image: tmaier/docker-compose:20.10
+
+build:
+  stage: build
+
+  # determines the gitlab runner that will be run. specific to my gitlab
+  # instance.
+  tags:
+    - anything
+
+  rules:
+    # runs job if on main branch
+    - if: $CI_COMMIT_BRANCH == "main"
+
+  script:
+    - cp ./docker-compose-prod.yaml ./docker-compose.yaml
+    - echo "building containers.."
+    - docker-compose build --no-cache
 
 deploy:
   stage: deploy
@@ -24,6 +42,5 @@ deploy:
 
   script:
     - cp ./docker-compose-prod.yaml ./docker-compose.yaml
-    - docker-compose build --no-cache
     - echo "Spinning up containers..."
     - docker-compose up -d
