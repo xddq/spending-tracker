@@ -17,7 +17,7 @@ import Network.HTTP.Types (Status, status200, status400, status404, status500)
 import Network.Wai (Application)
 import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequestHeaders), cors, simpleCorsResourcePolicy)
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
-import Views (displayPurchases, errorView, htmlToText, mkCurrentDate)
+import Views (errorPage, htmlToText, landingPage, mkCurrentDate)
 import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, redirect, scottyApp, setHeader, status, text)
 
 newtype ApiError = ApiError {apiErrrorMessage :: Text}
@@ -60,12 +60,6 @@ textToDate = parseTimeM True defaultTimeLocale dateFormat
 euroToCent :: Double -> Int
 euroToCent x = round $ x * 100
 
--- returns the current date in the format we use for the app
--- getCurrentDateAsString :: IO CurrentDateAsString
--- getCurrentDateAsString = do
---   timeNow <- utctDay <$> getCurrentTime
---   return $ mkCurrentDateAsString timeNow
-
 mkApp :: Connection -> IO Application
 mkApp conn =
   scottyApp $ do
@@ -80,7 +74,7 @@ mkApp conn =
       whoPayed <- param "whoPayed" :: ActionM Text
       date <- param "date" :: ActionM String
       case textToDate date of
-        Nothing -> text $ htmlToText $ errorView "could not parse the given date"
+        Nothing -> text $ htmlToText $ errorPage "could not parse the given date"
         Just date -> do
           _purchase <- liftIO $ createPurchase conn (CreatePurchaseInput titleValue (euroToCent priceInEuro) whoPayed date)
           redirect "/"
@@ -89,7 +83,7 @@ mkApp conn =
       setHeader "Content-Type" "text/html; charset=utf-8"
       purchases <- liftIO (getPurchases conn)
       currentDate <- liftIO (utctDay <$> getCurrentTime)
-      text $ htmlToText $ displayPurchases (mkCurrentDate currentDate) purchases
+      text $ htmlToText $ landingPage (mkCurrentDate currentDate) purchases
 
 -- get "/numbers" $ do
 --   setHeader "Content-Type" "text/html; charset=utf-8"
