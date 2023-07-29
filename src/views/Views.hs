@@ -5,6 +5,7 @@
 module Views
   ( errorPage,
     landingPage,
+    editPurchasePage,
     htmlToText,
     CurrentDate,
     mkCurrentDate,
@@ -30,20 +31,6 @@ instance Show CurrentDate where
   -- letters then space and a 4 char year. Example: 23.07.2023
   show (CurrentDate a) = formatTime defaultTimeLocale "%-d.%-m.%Y" a
 
-bulma :: Html
-bulma = docTypeHtml $ do
-  H.head $ do
-    meta ! charset "utf-8"
-    meta ! name "viewport" ! content "width=device-width, initial-scale=1"
-    H.title "Hello Bulma!"
-    link ! rel "stylesheet" ! href "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
-  body $ section ! class_ "section" $ H.div ! class_ "container" $ do
-    h1 ! class_ "title" $ "Hello World"
-    p ! class_ "subtitle" $ do
-      "My first website with"
-      strong "Bulma"
-      "!"
-
 newtype Title = Title String
 
 instance Show Title where
@@ -51,6 +38,18 @@ instance Show Title where
 
 mkTitle :: String -> Title
 mkTitle = Title
+
+-- delay for page redirect in seconds
+newtype Delay = Delay Int
+
+instance Show Delay where
+  show (Delay x) = show x
+
+mkDelay :: Int -> Delay
+mkDelay = Delay
+
+-- TODO/Maybe make data constructor for page and add all pages there..?
+type Page = String
 
 -- snippets
 
@@ -63,6 +62,16 @@ makeHtmlHead x =
   H.head $ do
     meta ! charset "utf-8"
     meta ! name "viewport" ! content "width=device-width, initial-scale=1"
+    H.title $ toHtml $ show x
+    link ! rel "stylesheet" ! href "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
+
+makeHtmlHeadWithRedirect :: Title -> Delay -> Page -> Html
+makeHtmlHeadWithRedirect x y z =
+  H.head $ do
+    meta ! charset "utf-8"
+    meta ! name "viewport" ! content "width=device-width, initial-scale=1"
+    -- TODO: maybe avoid hardcoded url here..?
+    meta ! httpEquiv "refresh" ! content (toValue $ show y ++ ";URL=https://spending.pierre-dev.com" ++ z)
     H.title $ toHtml $ show x
     link ! rel "stylesheet" ! href "https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css"
 
@@ -86,6 +95,26 @@ addPurchaseSnippet currentDate = do
         H.div ! class_ "control" $ input ! class_ "input" ! type_ "text" ! A.id "dateInput" ! name "date" ! pattern "(0[1-9]|[1-2][0-9]|3[0-1])\\.(0[1-9]|1[0-2])\\.20[0-9]{2}" ! placeholder (toValue $ show currentDate) ! required ""
       H.div ! class_ "field" $ H.div ! class_ "control" $ input ! class_ "button is-link" ! type_ "submit" ! value "Eintrag erstellen"
 
+-- html snippet for editing a purchase
+editPurchaseSnippet :: Purchase -> Html
+editPurchaseSnippet (Purchase pId pTitle pPriceCent pWhoPayed pDate) = do
+  section ! class_ "section" $ H.div ! class_ "container" $ do
+    h1 ! class_ "title" $ "Eintrag hinzufügen"
+    H.form ! target "_self" ! action "/api/add-entry" ! method "post" $ do
+      H.div ! class_ "field" $ do
+        H.label ! class_ "label" $ "Beschreibung des Einkaufs"
+        H.div ! class_ "control" $ input ! class_ "input" ! type_ "text" ! name "title" ! required "" ! placeholder (toValue pTitle)
+      H.div ! class_ "field" $ do
+        H.label ! class_ "label" $ "Wer hat gezahlt"
+        H.div ! class_ "control" $ input ! class_ "input" ! type_ "text" ! name "whoPayed" ! required "" ! placeholder (toValue pWhoPayed)
+      H.div ! class_ "field" $ do
+        H.label ! class_ "label" $ "Preis in Euro (Z.b. 5.30 für 5.30€)"
+        H.div ! class_ "control" $ input ! class_ "input" ! type_ "number" ! name "priceInEuro" ! placeholder (toValue $ show ((fromIntegral pPriceCent) / 100)) ! step "0.01" ! A.min "0" ! required ""
+      H.div ! class_ "field" $ do
+        H.label ! class_ "label" $ "Datum (Korrektes Format ist z.b. 26.03.2023 oder 26.3.2023)"
+        H.div ! class_ "control" $ input ! class_ "input" ! type_ "text" ! A.id "dateInput" ! name "date" ! pattern "(0[1-9]|[1-2][0-9]|3[0-1])\\.(0[1-9]|1[0-2])\\.20[0-9]{2}" ! placeholder (toValue $ show $ mkCurrentDate pDate) ! required ""
+      H.div ! class_ "field" $ H.div ! class_ "control" $ input ! class_ "button is-link" ! type_ "submit" ! value "Update speichern"
+
 -- __snippets__
 displayPurchases :: CurrentDate -> [Purchase] -> Html
 displayPurchases x purchases = do
@@ -97,6 +126,7 @@ displayPurchases x purchases = do
         th "Person die gezahlt hat"
         th "Preis in Euro"
         th "Datum des Einkaufs"
+        th "Eintrag bearbeiten"
       tbody $ mapM_ displayPurchase purchases
 
 displayPurchase :: Purchase -> Html
@@ -106,6 +136,7 @@ displayPurchase (Purchase pId pTitle pPriceCent pWhoPayed pDate) = do
     H.td $ toHtml pWhoPayed
     H.td $ toHtml $ priceCentToEuroString pPriceCent
     H.td $ toHtml $ show $ mkCurrentDate pDate
+    H.td $ a ! href (toValue $ "/purchases/" ++ show pId ++ "/edit") ! class_ "button is-primary" $ "Bearbeiten"
 
 -- pages
 landingPage :: CurrentDate -> [Purchase] -> Html
@@ -115,13 +146,20 @@ landingPage x purchases = docTypeHtml $ do
     addPurchaseSnippet x
     displayPurchases x purchases
 
+editPurchasePage :: Purchase -> Html
+editPurchasePage purchase = docTypeHtml $ do
+  makeHtmlHead $ mkTitle "Edit Purchase"
+  body $ editPurchaseSnippet purchase
+
 errorPage :: Text -> Html
 errorPage err = docTypeHtml $ do
-  makeHtmlHead $ mkTitle "Spending Tracker"
+  makeHtmlHeadWithRedirect (mkTitle "Error") (mkDelay 5) "/"
   body $ do
     p "An error occured:"
     br
     p $ toHtml err
+    br
+    p "You will be redirected to the home page within 5 seconds."
 
 -- __pages__
 

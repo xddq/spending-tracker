@@ -6,7 +6,7 @@ import Control.Monad.Cont (MonadIO (liftIO))
 import Data.Aeson (FromJSON (parseJSON), Result (Error, Success), ToJSON (toJSON), Value, decode, encode, fromJSON, object, withObject, (.:), (.=))
 import Data.Maybe (listToMaybe)
 import Data.String (IsString (fromString))
-import Data.Text.Lazy (Text, pack)
+import Data.Text.Lazy (Text, pack, unpack)
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Data.Text.Lazy.Read (decimal)
 import Data.Time (Day, UTCTime (utctDay), defaultTimeLocale, formatTime, getCurrentTime, parseTimeM)
@@ -19,35 +19,6 @@ import Network.Wai.Middleware.Cors (CorsResourcePolicy (corsMethods, corsRequest
 import Network.Wai.Middleware.RequestLogger (logStdoutDev)
 import Views (errorPage, htmlToText, landingPage, mkCurrentDate)
 import Web.Scotty (ActionM, body, delete, get, middleware, param, patch, post, redirect, scottyApp, setHeader, status, text)
-
-newtype ApiError = ApiError {apiErrrorMessage :: Text}
-  deriving (Show)
-
-instance ToJSON ApiError where
-  toJSON (ApiError msg) = object ["message" .= msg]
-
-sendError :: Text -> Status -> ActionM ()
-sendError message responseStatus = do
-  setHeader "Content-Type" "application/json"
-  status responseStatus
-  text $ decodeUtf8 $ encode $ ApiError message
-
-sendSuccess :: Text -> ActionM ()
-sendSuccess message = do
-  setHeader "Content-Type" "application/json"
-  status status200
-  text message
-
--- TODO: why is this signature not working?
--- allowCors :: Middleware
-allowCors = cors (const $ Just appCorsResourcePolicy)
-
-appCorsResourcePolicy :: CorsResourcePolicy
-appCorsResourcePolicy =
-  simpleCorsResourcePolicy
-    { corsMethods = ["OPTIONS", "GET", "PATCH", "POST", "DELETE"],
-      corsRequestHeaders = ["Authorization", "Content-Type"]
-    }
 
 -- days may have 1 or 2 chars, then one space, then month with one or two
 -- letters then space and a 4 char year. Example: 23 07 2023
@@ -65,7 +36,6 @@ mkApp conn =
   scottyApp $ do
     -- Add any WAI middleware, they are run top-down.
     middleware logStdoutDev
-    middleware allowCors
 
     -- expecting the form params here in order to create the new entry
     post "/api/add-entry" $ do
@@ -84,6 +54,22 @@ mkApp conn =
       purchases <- liftIO (getPurchases conn)
       currentDate <- liftIO (utctDay <$> getCurrentTime)
       text $ htmlToText $ landingPage (mkCurrentDate currentDate) purchases
+
+    get "/purchases/:id/edit" $ do
+      unparsedId <- param "id"
+      case decimal unparsedId of
+        Left err -> text $ htmlToText (errorPage $ pack err)
+        Right (parsedId, _rest) -> do
+          -- TODO - continue here:
+          --   - Implement getPurchaseById
+          --   - pass purchase to edit page
+          deletedRowsCount <- liftIO (deleteTodo conn parsedId)
+          editPurchasePage
+
+-- deletedRowsCount <- liftIO (deleteTodo conn parsedId)
+-- if deletedRowsCount == 1
+--   then sendSuccess $ decodeUtf8 $ encode $ object ["message" .= ("ok" :: Text)]
+--   else sendError (mkApiError "not found") status404
 
 -- get "/numbers" $ do
 --   setHeader "Content-Type" "text/html; charset=utf-8"

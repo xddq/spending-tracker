@@ -54,3 +54,6 @@ createPurchase conn = query conn "INSERT INTO purchases (title, price_in_cent, n
 
 getPurchases :: Connection -> IO [Purchase]
 getPurchases conn = query_ conn "SELECT * FROM purchases ORDER BY date DESC"
+
+getPurchaseById :: Connection -> Int -> IO [Purchase]
+getPurchaseById conn = query_ conn "SELECT * FROM purchases WHERE id = ?"
